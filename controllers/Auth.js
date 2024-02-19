@@ -112,46 +112,55 @@ const login = async (req, res) => {
     const user = await User.findOne({ email: email });
 
     if (!user) {
-      return res.json({ success: false, message: "Email not found" });
+      return res
+        .status(401)
+        .json({ success: false, message: "Invalid email or password" });
     }
+
     if (!user.emailVerified) {
-      return res.json({
-        success: false,
-        message: "Please Verify Your Account by the link sent on mail",
-      });
+      return res
+        .status(401)
+        .json({
+          success: false,
+          message: "Please verify your email to log in",
+        });
     }
 
-    bcrypt.compare(password, user.password, (err, result) => {
-      if (result == true) {
-        const token = jwt.sign(
-          {
-            _id: user._id,
-            name: user.name,
-            email: user.email,
-            role: user.role,
-            balance: user.balance,
-          },
-          process.env.TOKEN_SECRET
-        );
+    const passwordMatch = await bcrypt.compare(password, user.password);
 
-        return res.json({
-          success: true,
-          message: "Logged in successful",
-          token: token,
+    if (passwordMatch) {
+      const token = jwt.sign(
+        {
+          _id: user._id,
           name: user.name,
+          email: user.email,
+          role: user.role,
           balance: user.balance,
-          role: user.role, 
-        });
-      } else {
-        return res.json({ success: false, message: "Wrong Password" });
-      }
-    });
+        },
+        process.env.TOKEN_SECRET,
+        { expiresIn: "1h" }
+      );
+
+      return res.json({
+        success: true,
+        message: "Logged in successfully",
+        token: token,
+        name: user.name,
+        balance: user.balance,
+        role: user.role,
+      });
+    } else {
+      return res
+        .status(401)
+        .json({ success: false, message: "Invalid email or password" });
+    }
   } catch (err) {
-    return res.json({ success: false, message: err.message });
+    console.error("Error logging in:", err);
+    return res
+      .status(500)
+      .json({ success: false, message: "Internal server error" });
   }
 };
-
-
 
 const activateAccount = async (req, res) => {
   const token = req.params.token;
