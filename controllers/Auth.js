@@ -2,7 +2,7 @@ const jwt = require("jsonwebtoken");
 const nodemailer = require("nodemailer");
 const User = require("../models/User");
 const bcrypt = require("bcrypt");
-
+require("dotenv").config();
 const signUp = async (req, res) => {
   const { name, email, password } = req.body;
 
@@ -118,12 +118,10 @@ const login = async (req, res) => {
     }
 
     if (!user.emailVerified) {
-      return res
-        .status(401)
-        .json({
-          success: false,
-          message: "Please verify your email to log in",
-        });
+      return res.status(401).json({
+        success: false,
+        message: "Please verify your email to log in",
+      });
     }
 
     const passwordMatch = await bcrypt.compare(password, user.password);
@@ -168,13 +166,20 @@ const activateAccount = async (req, res) => {
   try {
     const data = jwt.verify(token, process.env.TOKEN_SECRET);
 
-    await User.findByIdAndUpdate(data._id, {
+    const user = await User.findByIdAndUpdate(data._id, {
       emailVerified: true,
     });
 
-    return res.redirect("https://localhost:5173/");
+    if (!user) {
+      return res
+        .status(404)
+        .json({ success: false, message: "User not found" });
+    }
+    return res.redirect(process.env.FRONTEND_URL);
   } catch (err) {
-    return res.json({ success: false, message: "Link has Been Expired!" });
+    return res
+      .status(500)
+      .json({ success: false, message: "Internal server error" });
   }
 };
 
